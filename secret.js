@@ -3,6 +3,20 @@ const { spawn } = require('child_process')
 const readline = require('readline')
 const yn = require('./yn')
 
+class SecretNotFoundError extends Error {
+    constructor (message) {
+        super(message)
+        this.name = this.constructor.name
+    }
+}
+
+class InvalidSecretType extends Error {
+    constructor (message) {
+        super(message)
+        this.name = this.constructor.name
+    }
+}
+
 const parseSecurityOutput = output => {
     const obj = {
         keychain: /(?<=keychain: ).*/,
@@ -39,7 +53,7 @@ const getKey = (label, type, ex, attempt = 0) => new Promise((resolve, reject) =
     if (type === undefined) {
         type = keyTypes[attempt]
     } else if (!keyTypes.includes(type)) {
-        reject(new Error(`Invalid key type '${type}': options are ${keyTypes.join(', ')}`))
+        reject(new InvalidSecretType(`Secret type was '${type}': must be one of ${keyTypes.join(', ')}`))
     }
     type = type === undefined ? keyTypes[attempt] : type
     const security = spawn(ex, [ 'find-'+type+'-password', '-l', label, '-g' ])
@@ -59,7 +73,7 @@ const getKey = (label, type, ex, attempt = 0) => new Promise((resolve, reject) =
             if (attempt < keyTypes.length) {
                 resolve(getKey(label, undefined, ex, attempt))
             } else {
-                reject(new Error('Password not found'))
+                reject(new SecretNotFoundError('could not find secret in default keychain'))
             }
         }
     })
