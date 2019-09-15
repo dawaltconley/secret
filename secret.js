@@ -1,4 +1,5 @@
-const spawn = require('child_process').spawn
+const { URL } = require('url')
+const { spawn } = require('child_process')
 const readline = require('readline')
 const yn = require('./yn')
 
