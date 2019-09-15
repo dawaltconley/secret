@@ -17,6 +17,22 @@ class InvalidSecretType extends Error {
     }
 }
 
+const convertProtocol = protocol => {
+    const pDict = {
+        'https': 'htps',
+        'http': 'http',
+        'ftp': 'ftp '
+    }
+    for (p in pDict) {
+        if (protocol === p) {
+            return pDict[p]
+        } else if (protocol === pDict[p]) {
+            return p
+        }
+    }
+    return null
+}
+
 const parseSecurityOutput = output => {
     const obj = {
         keychain: /(?<=keychain: ).*/,
@@ -43,7 +59,7 @@ const parseSecurityOutput = output => {
             obj[k] = v.match(/"(.*)"/)[1]
         }
     }
-    if (obj.protocol === 'htps') obj.protocol = 'https'
+    obj.protocol = convertProtocol(obj.protocol)
     return obj
 }
 
