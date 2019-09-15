@@ -104,6 +104,7 @@ class Secret {
 
     get() {
         return getKey(this.label, this.type, this.executablePath)
+            .catch(e => console.error(e))
     }
 }
 
