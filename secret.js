@@ -63,9 +63,10 @@ const parseSecurityOutput = output => {
     return obj
 }
 
+const keyTypes = ['generic', 'internet']
+
 const getKey = (label, type, ex, attempt = 0) => new Promise((resolve, reject) => {
     let result = ''
-    const keyTypes = ['generic', 'internet']
     if (type === undefined) {
         type = keyTypes[attempt]
     } else if (!keyTypes.includes(type)) {
@@ -95,11 +96,92 @@ const getKey = (label, type, ex, attempt = 0) => new Promise((resolve, reject) =
     })
 })
 
+const setKey = (label, type, ex) => new Promise(async (resolve, reject) => {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        terminal: false
+    })
+    const prompt = {
+        type: q => new Promise(resolve => rl.question(q, a => {
+            let i = keyTypes.indexOf(a.trim().toLowerCase())
+            if (i >= 0) {
+                resolve(keyTypes[i])
+            } else {
+                resolve(prompt.type(`'${a}' is not a valid option: please pick one of ${keyTypes.join(', ')}: `))
+            }
+        })),
+        url: q => new Promise((resolve, reject) => rl.question(q, a => {
+            try {
+                let url = new URL(a)
+                resolve(url)
+            } catch (e) {
+                if (e.name === 'TypeError [ERR_INVALID_URL]') {
+                    resolve(prompt.domain(`'${a}' is not a valid url: please enter a valid url: `))
+                } else {
+                    reject(e)
+                }
+            }
+        })),
+        misc: q => new Promise(resolve => rl.question(q, a => resolve(a)))
+    }
+    if (type === undefined) {
+        type = await prompt.type('type (generic/internet): ')
+    }
+    let opt = [ 'add-'+type+'-password', '-l', label ] // force update? -U
+    if (type === 'generic') {
+        opt = [ ...opt, '-s', await prompt.misc('service (optional): ') ]
+    } else {
+        let url = await prompt.url('url: ')
+        let protocol = convertProtocol(url.protocol) || ''
+        opt = [ ...opt,
+            '-s', url.host,
+            '-p', url.pathname,
+            '-r', protocol
+        ]
+    }
+    opt = [ ...opt, '-a', await prompt.misc('account (optional): ') ]
+    let secret = await prompt.misc('secret: ')
+    opt = [ ...opt, '-w', secret ]
+    rl.close()
+    const security = spawn(ex, opt)
+    security.on('error', e => reject(e)) // failed to spawn child process
+    security.on('close', code => {
+        if (code === 0) {
+            console.log(`${label} secret set.`)
+            resolve(secret)
+        } else {
+            reject(new Error(`Security exitted with code ${code}`))
+        }
+    })
+})
+
 class Secret {
     constructor(label, type) {
         this.label = label
         this.type = type
         this.executablePath = '/usr/bin/security'
+    }
+
+    config() {
+        getKey(this.label, this.type, this.executablePath)
+            .then(async secret => {
+                this.type = secret.type
+                if (await yn(`The ${this.label} secret has already been set.\nDo you want to override it?`)) {
+                    return setKey(this.label, this.type, this.executablePath)
+                        .catch(e => console.error(e))
+                } else {
+                    return secret
+                }
+            })
+            .catch(e => {
+                if (e.name = 'SecretNotFoundError') {
+                    return setKey(this.label, this.type, this.executablePath)
+                        .catch(e => console.error(e))
+                } else {
+                    throw e
+                }
+            })
     }
 
     get() {
