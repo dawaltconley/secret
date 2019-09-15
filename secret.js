@@ -38,7 +38,7 @@ const getKey = (label, type, ex, attempt = 0) => new Promise((resolve, reject) =
     if (type === undefined) {
         type = keyTypes[attempt]
     } else if (!keyTypes.includes(type)) {
-        reject('Invalid key type: options are ' + keyTypes.join(', '))
+        reject(new Error(`Invalid key type '${type}': options are ${keyTypes.join(', ')}`))
     }
     type = type === undefined ? keyTypes[attempt] : type
     const security = spawn(ex, [ 'find-'+type+'-password', '-l', label, '-g' ])
@@ -58,7 +58,7 @@ const getKey = (label, type, ex, attempt = 0) => new Promise((resolve, reject) =
             if (attempt < keyTypes.length) {
                 resolve(getKey(label, undefined, ex, attempt))
             } else {
-                reject('Password not found')
+                reject(new Error('Password not found'))
             }
         }
     })
