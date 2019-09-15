@@ -66,8 +66,8 @@ const getKey = (label, type, ex, attempt = 0) => new Promise((resolve, reject) =
 
 class Secret {
     constructor(label, type) {
-        this.label = label,
-        this.type = type,
+        this.label = label
+        this.type = type
         this.executablePath = '/usr/bin/security'
     }
 
