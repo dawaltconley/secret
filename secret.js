@@ -63,120 +63,102 @@ const parseSecurityOutput = output => {
     return obj
 }
 
-const keyTypes = ['generic', 'internet']
-
-const getKey = (label, type, ex, attempt = 0) => new Promise((resolve, reject) => {
-    let result = ''
-    if (type === undefined) {
-        type = keyTypes[attempt]
-    } else if (!keyTypes.includes(type)) {
-        reject(new InvalidSecretType(`Secret type was '${type}': must be one of ${keyTypes.join(', ')}`))
-    }
-    type = type === undefined ? keyTypes[attempt] : type
-    const security = spawn(ex, [ 'find-'+type+'-password', '-l', label, '-g' ])
-    security.on('error', e => reject(e)) // failed to spawn child process
-    security.stdout.on('data', d => result += d.toString())
-    security.stderr.on('data', d => result += d.toString())
-    security.on('close', code => {
-        if (code === 0) {
-            resolve({ 
-                label: label,
-                type: type,
-                ...parseSecurityOutput(result)
-            })
-        } else {
-            // password not found, retry
-            attempt++
-            if (attempt < keyTypes.length) {
-                resolve(getKey(label, undefined, ex, attempt))
-            } else {
-                reject(new SecretNotFoundError('could not find secret in default keychain'))
-            }
-        }
-    })
-})
-
-const setKey = (label, type, ex) => new Promise(async (resolve, reject) => {
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-        terminal: false
-    })
-    const prompt = {
-        type: q => new Promise(resolve => rl.question(q, a => {
-            let i = keyTypes.indexOf(a.trim().toLowerCase())
-            if (i >= 0) {
-                resolve(keyTypes[i])
-            } else {
-                resolve(prompt.type(`'${a}' is not a valid option: please pick one of ${keyTypes.join(', ')}: `))
-            }
-        })),
-        url: q => new Promise((resolve, reject) => rl.question(q, a => {
-            try {
-                let url = new URL(a)
-                resolve(url)
-            } catch (e) {
-                if (e.name === 'TypeError [ERR_INVALID_URL]') {
-                    resolve(prompt.domain(`'${a}' is not a valid url: please enter a valid url: `))
-                } else {
-                    reject(e)
-                }
-            }
-        })),
-        misc: q => new Promise(resolve => rl.question(q, a => resolve(a)))
-    }
-    if (type === undefined) {
-        type = await prompt.type('type (generic/internet): ')
-    }
-    let opt = [ 'add-'+type+'-password', '-l', label ] // force update? -U
-    if (type === 'generic') {
-        opt = [ ...opt, '-s', await prompt.misc('service (optional): ') ]
-    } else {
-        let url = await prompt.url('url: ')
-        let protocol = convertProtocol(url.protocol) || ''
-        opt = [ ...opt,
-            '-s', url.host,
-            '-p', url.pathname,
-            '-r', protocol
-        ]
-    }
-    opt = [ ...opt, '-a', await prompt.misc('account (optional): ') ]
-    let secret = await prompt.misc('secret: ')
-    opt = [ ...opt, '-w', secret ]
-    rl.close()
-    const security = spawn(ex, opt)
-    security.on('error', e => reject(e)) // failed to spawn child process
-    security.on('close', code => {
-        if (code === 0) {
-            console.log(`${label} secret set.`)
-            resolve(secret)
-        } else {
-            reject(new Error(`Security exitted with code ${code}`))
-        }
-    })
-})
-
 class Secret {
-    constructor(label, type) {
-        this.label = label
-        this.type = type
+    constructor(service, account = '') {
+        this.account = account
         this.executablePath = '/usr/bin/security'
+        try {
+            let url = new URL(service)
+            this.type = 'internet'
+            this.host = url.host
+            this.protocol = url.protocol
+            this.href = url.href
+            this.path = url.pathname
+        } catch (e) {
+            if (e.name === 'TypeError [ERR_INVALID_URL]') {
+                this.type = 'generic'
+                this.service = service
+            } else {
+                throw e
+            }
+        }
+        this.name = this.service || this.host
+    }
+
+    getKey() {
+        return new Promise((resolve, reject) => {
+            let result = ''
+            const security = spawn(this.executablePath, [ 'find-'+this.type+'-password', '-a', this.account, '-s', this.name, '-g' ])
+            security.on('error', e => reject(e)) // failed to spawn child process
+            security.stdout.on('data', d => result += d.toString())
+            security.stderr.on('data', d => result += d.toString())
+            security.on('close', code => {
+                if (code === 0) {
+                    resolve({
+                        type: this.type,
+                        ...parseSecurityOutput(result)
+                    })
+                } else {
+                    reject(new SecretNotFoundError(`could not find ${this.service} in default keychain`))
+                }
+            })
+        })
+    }
+
+    setKey() {
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+            terminal: false
+        })
+        const prompt = q => new Promise(resolve => rl.question(q, a => resolve(a)))
+        return new Promise(async (resolve, reject) => {
+            let opt = [ 'add-'+this.type+'-password', '-a', this.account, '-s', this.name, '-U' ] // force update? -U
+            if (this.type === 'internet') {
+                let protocol = convertProtocol(this.protocol)
+                opt = [ ...opt, '-p', this.path ]
+                if (protocol) opt = [ ...opt, '-r', protocol ]
+            }
+            const secret = await prompt('secret: ')
+            opt = [ ...opt, '-w', secret ]
+            rl.close()
+            const security = spawn(this.executablePath, opt)
+            security.on('error', e => reject(e)) // failed to spawn child process
+            security.on('close', code => {
+                if (code === 0) {
+                    resolve(`${this.name} secret set.`)
+                } else {
+                    reject(new Error(`Security exited with code ${code}`))
+                }
+            })
+        })
+    }
+
+    delete() {
+        return new Promise((resolve, reject) => {
+            const security = spawn(this.executablePath, [ 'delete-'+this.type+'-password', '-a', this.account, '-s', this.name ])
+            security.on('error', e => reject(e))
+            security.on('close', code => {
+                if (code === 0) {
+                    resolve(`${this.name} secret deleted.`)
+                } else {
+                    reject(new Error(`Security exited with code ${code}`))
+                }
+            })
+        })
     }
 
     config() {
-        getKey(this.label, this.type, this.executablePath)
-            .then(async secret => {
-                this.type = secret.type
-                if (await yn(`The ${this.label} secret has already been set.\nDo you want to override it?`)) {
-                    return setKey(this.label, this.type, this.executablePath)
+        return this.getKey()
+            .then(async () => {
+                if (await yn(`The ${this.name} secret has already been set.\nDo you want to override it?`)) {
+                    return this.setKey()
                         .catch(e => console.error(e))
-                } else {
-                    return secret
                 }
             })
             .catch(e => {
                 if (e.name = 'SecretNotFoundError') {
-                    return setKey(this.label, this.type, this.executablePath)
+                    return this.setKey()
                         .catch(e => console.error(e))
                 } else {
                     throw e
@@ -185,8 +167,15 @@ class Secret {
     }
 
     get() {
-        return getKey(this.label, this.type, this.executablePath)
-            .catch(e => console.error(e))
+        return this.getKey().catch(async e => {
+            if (e.name = 'SecretNotFoundError') {
+                if (await yn(`Secret not found for ${this.name}, do you want to set it now?`)) {
+                    return this.setKey().then(this.get.bind(this))
+                }
+            } else {
+                throw e
+            }
+        })
     }
 }
 
