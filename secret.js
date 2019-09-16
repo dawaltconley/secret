@@ -19,9 +19,8 @@ class InvalidSecretType extends Error {
 
 const convertProtocol = protocol => {
     const pDict = {
-        'https': 'htps',
-        'http': 'http',
-        'ftp': 'ftp '
+        'https:': 'htps',
+        'http:': 'http'
     }
     for (p in pDict) {
         if (protocol === p) {
