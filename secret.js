@@ -141,6 +141,8 @@ class Secret {
             security.on('close', code => {
                 if (code === 0) {
                     resolve(`${this.name} secret deleted.`)
+                } else if (code === 44) {
+                    reject(new SecretNotFoundError(`could not find ${this.service} in default keychain`))
                 } else {
                     reject(new Error(`Security exited with code ${code}`))
                 }
