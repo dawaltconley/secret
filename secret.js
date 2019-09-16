@@ -35,9 +35,10 @@ const convertProtocol = protocol => {
 const parseSecurityOutput = output => {
     const obj = {
         keychain: /(?<=keychain: ).*/,
+        label: /(?<=0x00000007 <blob>=).*/,
         account: /(?<="acct"<blob>\=).*/,
         service: /(?<="svce"<blob>\=).*/,
-        domain: /(?<="srvr"<blob>\=).*/,
+        host: /(?<="srvr"<blob>\=).*/,
         path: /(?<="path"<blob>\=).*/,
         protocol: /(?<="ptcl"<blob>\=).*/,
         password: /(?<=password: ).*/
