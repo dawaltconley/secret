@@ -1,7 +1,6 @@
 const { URL } = require('url')
 const { spawn } = require('child_process')
-const readline = require('readline')
-const yn = require('./yn')
+const { whisper, yn } = require('./prompt.js')
 
 class SecretNotFoundError extends Error {
     constructor (message) {
@@ -106,12 +105,6 @@ class Secret {
     }
 
     setKey() {
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout,
-            terminal: false
-        })
-        const prompt = q => new Promise(resolve => rl.question(q, a => resolve(a)))
         return new Promise(async (resolve, reject) => {
             let opt = [ 'add-'+this.type+'-password', '-a', this.account, '-s', this.name, '-U' ] // force update? -U
             if (this.type === 'internet') {
@@ -119,9 +112,8 @@ class Secret {
                 opt = [ ...opt, '-p', this.path ]
                 if (protocol) opt = [ ...opt, '-r', protocol ]
             }
-            const secret = await prompt('secret: ')
+            const secret = await whisper('secret: ')
             opt = [ ...opt, '-w', secret ]
-            rl.close()
             const security = spawn(this.executablePath, opt)
             security.on('error', e => reject(e)) // failed to spawn child process
             security.on('close', code => {
