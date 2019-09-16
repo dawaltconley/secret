@@ -1,11 +1,18 @@
 const readline = require('readline')
 
+const reEsc = s => s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+
 const question = (quiet, rl, input) => {
-    const normalWrite = rl._writeToOutput
-    rl.setPrompt(input.trim() + ' ')
+    const prompt = input.trim() + ' '
+    rl.setPrompt(prompt)
     rl.prompt()
-    if (quiet) rl._writeToOutput = w =>
-        rl.output.write(w.replace(/./g, '*'))
+    const normalWrite = rl._writeToOutput
+    if (quiet) rl._writeToOutput = w => {
+        let [, p, a ] = w.match(new RegExp('^('+reEsc(prompt)+')?(.*)$')) || []
+        p = p || ''
+        a = (a || w).replace(/./g, '*')
+        rl.output.write(p + a)
+    }
     return new Promise(resolve => rl.on('line', a => {
         rl._writeToOutput = normalWrite
         resolve(a)
