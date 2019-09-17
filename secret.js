@@ -60,7 +60,7 @@ const parseSecurityOutput = output => {
             obj[k] = v.match(/"(.*)"/)[1]
         }
     }
-    obj.protocol = convertProtocol(obj.protocol)
+    if (obj.protocol) obj.protocol = convertProtocol(obj.protocol)
     return obj
 }
 
