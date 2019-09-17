@@ -41,7 +41,7 @@ const parseSecurityOutput = output => {
         service: /(?<="svce"<blob>\=).*/,
         host: /(?<="srvr"<blob>\=).*/,
         path: /(?<="path"<blob>\=).*/,
-        protocol: /(?<="ptcl"<blob>\=).*/,
+        protocol: /(?<="ptcl"<uint32>\=).*/,
         password: /(?<=password: ).*/
     }
     for (let k in obj) {
