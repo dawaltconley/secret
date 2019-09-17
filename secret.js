@@ -87,26 +87,6 @@ class Secret {
         this.name = this.service || this.host
     }
 
-    getKey() {
-        return new Promise((resolve, reject) => {
-            let result = ''
-            const security = spawn(this.executablePath, [ 'find-'+this.type+'-password', '-a', this.account, '-s', this.name, '-g' ])
-            security.on('error', e => reject(e)) // failed to spawn child process
-            security.stdout.on('data', d => result += d.toString())
-            security.stderr.on('data', d => result += d.toString())
-            security.on('close', code => {
-                if (code === 0) {
-                    resolve({
-                        type: this.type,
-                        ...parseSecurityOutput(result)
-                    })
-                } else {
-                    reject(new SecretNotFoundError(`could not find ${this.service} in default keychain`))
-                }
-            })
-        })
-    }
-
     set(secret, force = false) {
         return new Promise((resolve, reject) => {
             let opt = [
@@ -152,7 +132,7 @@ class Secret {
     }
 
     config() {
-        return this.getKey()
+        return this.get(false)
             .then(() => yn(`The ${this.name} secret has already been set.\nDo you want to override it?`))
             .catch(e => {
                 if (e.name = 'SecretNotFoundError') {
@@ -166,16 +146,35 @@ class Secret {
             })
     }
 
-    get() {
-        return this.getKey().catch(async e => {
+    get(interactive = true) {
+        let getSecret = new Promise((resolve, reject) => {
+            let result = ''
+            const security = spawn(this.executablePath, [ 'find-'+this.type+'-password', '-a', this.account, '-s', this.name, '-g' ])
+            security.on('error', e => reject(e)) // failed to spawn child process
+            security.stdout.on('data', d => result += d.toString())
+            security.stderr.on('data', d => result += d.toString())
+            security.on('close', code => {
+                if (code === 0) {
+                    resolve({
+                        type: this.type,
+                        ...parseSecurityOutput(result)
+                    })
+                } else {
+                    reject(new SecretNotFoundError(`could not find ${this.service} in default keychain`))
+                }
+            })
+        })
+        if (interactive) getSecret = getSecret.catch(async e => {
             if (e.name = 'SecretNotFoundError') {
                 if (await yn(`Secret not found for ${this.name}, do you want to set it now?`)) {
-                    return this.set().then(this.get.bind(this))
+                    return this.set(await whisper(this.prompt), true)
+                        .then(this.get.bind(this))
                 }
             } else {
                 throw e
             }
         })
+        return getSecret
     }
 }
 
