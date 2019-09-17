@@ -66,6 +66,7 @@ class Secret {
     constructor(service, account = '') {
         this.account = account
         this.executablePath = '/usr/bin/security'
+        this.prompt = 'secret: '
         try {
             let url = new URL(service)
             this.type = 'internet'
@@ -104,16 +105,19 @@ class Secret {
         })
     }
 
-    setKey() {
-        return new Promise(async (resolve, reject) => {
-            let opt = [ 'add-'+this.type+'-password', '-a', this.account, '-s', this.name, '-U' ] // force update? -U
+    setKey(secret) {
+        return new Promise((resolve, reject) => {
+            let opt = [
+                'add-'+this.type+'-password', '-U',
+                '-a', this.account,
+                '-s', this.name,
+                '-w', secret
+            ]
             if (this.type === 'internet') {
                 let protocol = convertProtocol(this.protocol)
                 opt = [ ...opt, '-p', this.path ]
                 if (protocol) opt = [ ...opt, '-r', protocol ]
             }
-            const secret = await whisper('secret: ')
-            opt = [ ...opt, '-w', secret ]
             const security = spawn(this.executablePath, opt)
             security.on('error', e => reject(e)) // failed to spawn child process
             security.on('close', code => {
@@ -144,19 +148,16 @@ class Secret {
 
     config() {
         return this.getKey()
-            .then(async () => {
-                if (await yn(`The ${this.name} secret has already been set.\nDo you want to override it?`)) {
-                    return this.setKey()
-                        .catch(e => console.error(e))
-                }
-            })
+            .then(() => yn(`The ${this.name} secret has already been set.\nDo you want to override it?`))
             .catch(e => {
                 if (e.name = 'SecretNotFoundError') {
-                    return this.setKey()
-                        .catch(e => console.error(e))
+                    return true
                 } else {
                     throw e
                 }
+            })
+            .then(async set => {
+                if (set) return this.setKey(await whisper(this.prompt))
             })
     }
 
