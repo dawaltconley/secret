@@ -107,7 +107,7 @@ class Secret {
         })
     }
 
-    setKey(secret, force = false) {
+    set(secret, force = false) {
         return new Promise((resolve, reject) => {
             let opt = [
                 'add-'+this.type+'-password',
@@ -162,7 +162,7 @@ class Secret {
                 }
             })
             .then(async set => {
-                if (set) return this.setKey(await whisper(this.prompt), true)
+                if (set) return this.set(await whisper(this.prompt), true)
             })
     }
 
@@ -170,7 +170,7 @@ class Secret {
         return this.getKey().catch(async e => {
             if (e.name = 'SecretNotFoundError') {
                 if (await yn(`Secret not found for ${this.name}, do you want to set it now?`)) {
-                    return this.setKey().then(this.get.bind(this))
+                    return this.set().then(this.get.bind(this))
                 }
             } else {
                 throw e
