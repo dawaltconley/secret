@@ -2,19 +2,20 @@ const { URL } = require('url')
 const { spawn } = require('child_process')
 const { whisper, yn } = require('@dawaltconley/cue')
 
-class SecretNotFoundError extends Error {
+class CustomError extends Error {
     constructor (message) {
         super(message)
         this.name = this.constructor.name
+        if (typeof Error.captureStackTrace === 'function') {
+            Error.captureStackTrace(this, this.constructor);
+        } else {
+            this.stack = (new Error(message)).stack;
+        }
     }
 }
 
-class InvalidSecretType extends Error {
-    constructor (message) {
-        super(message)
-        this.name = this.constructor.name
-    }
-}
+class SecretNotFoundError extends CustomError {}
+class InvalidSecretType extends CustomError {}
 
 const convertProtocol = protocol => {
     const pDict = {
