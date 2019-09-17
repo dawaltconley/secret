@@ -46,14 +46,14 @@ const questions = async (quiet, input) => {
     return answers
 }
 
-const ask = questions.bind(null, false)
+const prompt = questions.bind(null, false)
 const whisper = questions.bind(null, true)
 
 const yn = input => {
     if (typeof input !== 'string') {
         throw new TypeError(`yn input must be string: found ${typeof input}`)
     }
-    return ask(input.trim() + ' (y/n):')
+    return prompt(input.trim() + ' (y/n):')
         .then(a => {
             if (/^(?:y|yes)$/i.test(a.trim())) {
                 return true
@@ -66,7 +66,7 @@ const yn = input => {
 }
 
 module.exports = {
-    ask: ask,
+    prompt: prompt,
     whisper: whisper,
     yn: yn
 }
