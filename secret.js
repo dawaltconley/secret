@@ -1,6 +1,6 @@
 const { URL } = require('url')
 const { spawn } = require('child_process')
-const { whisper, yn } = require('./cue.js')
+const { whisper, yn } = require('@dawaltconley/cue')
 
 class SecretNotFoundError extends Error {
     constructor (message) {

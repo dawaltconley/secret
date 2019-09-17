@@ -23,5 +23,8 @@
   "bugs": {
     "url": "https://github.com/dawaltconley/secret/issues"
   },
-  "homepage": "https://github.com/dawaltconley/secret#readme"
+  "homepage": "https://github.com/dawaltconley/secret#readme",
+  "dependencies": {
+    "@dawaltconley/cue": "^0.1.1"
+  }
 }
