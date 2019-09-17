@@ -47,7 +47,7 @@ const parseSecurityOutput = output => {
     for (let k in obj) {
         let v = output.match(obj[k])
         if (!v) {
-            obj[k] = undefined
+            delete obj[k]
             continue
         }
         v = v[0]
