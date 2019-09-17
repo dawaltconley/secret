@@ -1,0 +1,27 @@
+{
+  "name": "@dawaltconley/secret",
+  "version": "0.1.0",
+  "description": "Saving and retrieving passwords via the OSX security cli.",
+  "main": "secret.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dawaltconley/secret.git"
+  },
+  "keywords": [
+    "osx",
+    "mac",
+    "keychain",
+    "password",
+    "secret",
+    "cli"
+  ],
+  "author": "Dylan Awalt-Conley",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dawaltconley/secret/issues"
+  },
+  "homepage": "https://github.com/dawaltconley/secret#readme"
+}
