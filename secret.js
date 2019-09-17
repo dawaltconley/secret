@@ -15,6 +15,7 @@ class CustomError extends Error {
 }
 
 class SecretNotFoundError extends CustomError {}
+class SecretAlreadySetError extends CustomError {}
 class InvalidSecretType extends CustomError {}
 
 const convertProtocol = protocol => {
@@ -106,14 +107,15 @@ class Secret {
         })
     }
 
-    setKey(secret) {
+    setKey(secret, force = false) {
         return new Promise((resolve, reject) => {
             let opt = [
-                'add-'+this.type+'-password', '-U',
+                'add-'+this.type+'-password',
                 '-a', this.account,
                 '-s', this.name,
                 '-w', secret
             ]
+            if (force) opt.push('-U')
             if (this.type === 'internet') {
                 let protocol = convertProtocol(this.protocol)
                 opt = [ ...opt, '-p', this.path ]
@@ -124,6 +126,8 @@ class Secret {
             security.on('close', code => {
                 if (code === 0) {
                     resolve(`${this.name} secret set.`)
+                } else if (code === 45) {
+                    reject(new SecretAlreadySetError(`${this.name} has already been set.`))
                 } else {
                     reject(new Error(`Security exited with code ${code}`))
                 }
@@ -158,7 +162,7 @@ class Secret {
                 }
             })
             .then(async set => {
-                if (set) return this.setKey(await whisper(this.prompt))
+                if (set) return this.setKey(await whisper(this.prompt), true)
             })
     }
 
